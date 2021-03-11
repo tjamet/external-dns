@@ -66,6 +66,7 @@ type Config struct {
 	AlwaysPublishNotReadyAddresses    bool
 	ConnectorSourceServer             string
 	Provider                          string
+	ProviderCacheTime                 time.Duration
 	GoogleProject                     string
 	GoogleBatchChangeSize             int
 	GoogleBatchChangeInterval         time.Duration
@@ -220,6 +221,7 @@ var defaultConfig = &Config{
 	PublishHostIP:               false,
 	ConnectorSourceServer:       "localhost:8080",
 	Provider:                    "",
+	ProviderCacheTime:           0,
 	GoogleProject:               "",
 	GoogleBatchChangeSize:       1000,
 	GoogleBatchChangeInterval:   time.Second,
@@ -423,6 +425,7 @@ func (cfg *Config) ParseFlags(args []string) error {
 
 	// Flags related to providers
 	app.Flag("provider", "The DNS provider where the DNS records will be created (required, options: aws, aws-sd, godaddy, google, azure, azure-dns, azure-private-dns, bluecat, cloudflare, rcodezero, digitalocean, dnsimple, akamai, infoblox, dyn, designate, coredns, skydns, ibmcloud, inmemory, ovh, pdns, oci, exoscale, linode, rfc2136, ns1, transip, vinyldns, rdns, scaleway, vultr, ultradns, gandi, safedns, tencentcloud)").Required().PlaceHolder("provider").EnumVar(&cfg.Provider, "aws", "aws-sd", "google", "azure", "azure-dns", "azure-private-dns", "alibabacloud", "cloudflare", "rcodezero", "digitalocean", "dnsimple", "akamai", "infoblox", "dyn", "designate", "coredns", "skydns", "ibmcloud", "inmemory", "ovh", "pdns", "oci", "exoscale", "linode", "rfc2136", "ns1", "transip", "vinyldns", "rdns", "scaleway", "vultr", "ultradns", "godaddy", "bluecat", "gandi", "safedns", "tencentcloud", "plural")
+	app.Flag("provider-cache-time", "The time to cache the DNS provider record list requests.").Default(defaultConfig.ProviderCacheTime.String()).DurationVar(&cfg.ProviderCacheTime)
 	app.Flag("domain-filter", "Limit possible target zones by a domain suffix; specify multiple times for multiple domains (optional)").Default("").StringsVar(&cfg.DomainFilter)
 	app.Flag("exclude-domains", "Exclude subdomains (optional)").Default("").StringsVar(&cfg.ExcludeDomains)
 	app.Flag("regex-domain-filter", "Limit possible domains and target zones by a Regex filter; Overrides domain-filter (optional)").Default(defaultConfig.RegexDomainFilter.String()).RegexpVar(&cfg.RegexDomainFilter)

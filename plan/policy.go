@@ -21,6 +21,11 @@ type Policy interface {
 	Apply(changes *Changes) *Changes
 }
 
+// PolicyProvider allows to provide dynamically a set of policies
+type PolicyProvider interface {
+	Policies() []Policy
+}
+
 // Policies is a registry of available policies.
 var Policies = map[string]Policy{
 	"sync":        &SyncPolicy{},
