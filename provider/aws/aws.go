@@ -386,6 +386,10 @@ func (p *AWSProvider) records(ctx context.Context, zones map[string]*route53.Hos
 	return endpoints, nil
 }
 
+func (p *AWSProvider) Policies() []plan.Policy {
+	return []plan.Policy{&plan.NoMixedIdentifierPolicy{}}
+}
+
 // CreateRecords creates a given set of DNS records in the given hosted zone.
 func (p *AWSProvider) CreateRecords(ctx context.Context, endpoints []*endpoint.Endpoint) error {
 	return p.doRecords(ctx, route53.ChangeActionCreate, endpoints)
