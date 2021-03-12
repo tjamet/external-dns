@@ -40,6 +40,30 @@ type mockProvider struct {
 	ExpectChanges *plan.Changes
 }
 
+type filteredMockProvider struct {
+	provider.BaseProvider
+	domainFilter      endpoint.DomainFilterInterface
+	RecordsStore      []*endpoint.Endpoint
+	RecordsCallCount  int
+	ApplyChangesCalls []*plan.Changes
+}
+
+func (p *filteredMockProvider) DomainFilter() endpoint.DomainFilterInterface {
+	return p.domainFilter
+}
+
+// Records returns the desired mock endpoints.
+func (p *filteredMockProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
+	p.RecordsCallCount++
+	return p.RecordsStore, nil
+}
+
+// ApplyChanges stores all calls for later check
+func (p *filteredMockProvider) ApplyChanges(ctx context.Context, changes *plan.Changes) error {
+	p.ApplyChangesCalls = append(p.ApplyChangesCalls, changes)
+	return nil
+}
+
 // Records returns the desired mock endpoints.
 func (p *mockProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	return p.RecordsStore, nil
@@ -191,4 +215,45 @@ func TestShouldRunOnce(t *testing.T) {
 
 	// But not two times
 	assert.False(t, ctrl.ShouldRunOnce(now))
+}
+
+func TestControllerSkipsEmptyChanges(t *testing.T) {
+	source := new(testutils.MockSource)
+	source.On("Endpoints").Return([]*endpoint.Endpoint{
+		{
+			DNSName:    "create-record.other.tld",
+			RecordType: endpoint.RecordTypeA,
+			Targets:    endpoint.Targets{"1.2.3.4"},
+		},
+		{
+			DNSName:    "some-record.used.tld",
+			RecordType: endpoint.RecordTypeA,
+			Targets:    endpoint.Targets{"8.8.8.8"},
+		},
+	}, nil)
+
+	// Fake some existing records in our DNS provider and validate some desired changes.
+	provider := &filteredMockProvider{
+		RecordsStore: []*endpoint.Endpoint{
+			{
+				DNSName:    "some-record.used.tld",
+				RecordType: endpoint.RecordTypeA,
+				Targets:    endpoint.Targets{"8.8.8.8"},
+			},
+		},
+		domainFilter: endpoint.NewDomainFilter([]string{"used.tld"}),
+	}
+	r, err := registry.NewNoopRegistry(provider)
+
+	require.NoError(t, err)
+
+	ctrl := &Controller{
+		Source:   source,
+		Registry: r,
+		Policy:   &plan.SyncPolicy{},
+	}
+
+	assert.NoError(t, ctrl.RunOnce(context.Background()))
+	assert.Equal(t, 1, provider.RecordsCallCount)
+	assert.Len(t, provider.ApplyChangesCalls, 0)
 }

@@ -68,7 +68,7 @@ func NewTXTRegistry(provider provider.Provider, txtPrefix, txtSuffix, ownerID st
 	}, nil
 }
 
-func (im *TXTRegistry) DomainFilter() endpoint.DomainFilter {
+func (im *TXTRegistry) DomainFilter() endpoint.DomainFilterInterface {
 	return im.provider.DomainFilter()
 }
 

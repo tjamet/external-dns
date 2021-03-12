@@ -42,7 +42,7 @@ func NewAWSSDRegistry(provider provider.Provider, ownerID string) (*AWSSDRegistr
 	}, nil
 }
 
-func (sdr *AWSSDRegistry) DomainFilter() endpoint.DomainFilter {
+func (sdr *AWSSDRegistry) DomainFilter() endpoint.DomainFilterInterface {
 	return sdr.provider.DomainFilter()
 }
 

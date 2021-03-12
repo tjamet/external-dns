@@ -72,6 +72,14 @@ var (
 			Help:      "Timestamp of last successful sync with the DNS provider",
 		},
 	)
+	controllerNoChangesTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "external_dns",
+			Subsystem: "controller",
+			Name:      "no_op_runs_total",
+			Help:      "Number of reconcile loops ending up with no changes on the DNS provider side.",
+		},
+	)
 	deprecatedRegistryErrors = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Subsystem: "registry",
@@ -96,6 +104,7 @@ func init() {
 	prometheus.MustRegister(lastSyncTimestamp)
 	prometheus.MustRegister(deprecatedRegistryErrors)
 	prometheus.MustRegister(deprecatedSourceErrors)
+	prometheus.MustRegister(controllerNoChangesTotal)
 }
 
 // Controller is responsible for orchestrating the different components.
@@ -147,18 +156,23 @@ func (c *Controller) RunOnce(ctx context.Context) error {
 		Policies:           []plan.Policy{c.Policy},
 		Current:            records,
 		Desired:            endpoints,
-		DomainFilter:       c.DomainFilter,
+		DomainFilter:       endpoint.MatchAllDomainFilters{c.DomainFilter, c.Registry.DomainFilter()},
 		PropertyComparator: c.Registry.PropertyValuesEqual,
 		ManagedRecords:     []string{endpoint.RecordTypeA, endpoint.RecordTypeCNAME},
 	}
 
 	plan = plan.Calculate()
 
-	err = c.Registry.ApplyChanges(ctx, plan.Changes)
-	if err != nil {
-		registryErrorsTotal.Inc()
-		deprecatedRegistryErrors.Inc()
-		return err
+	if plan.Changes.HasChanges() {
+		err = c.Registry.ApplyChanges(ctx, plan.Changes)
+		if err != nil {
+			registryErrorsTotal.Inc()
+			deprecatedRegistryErrors.Inc()
+			return err
+		}
+	} else {
+		controllerNoChangesTotal.Inc()
+		log.Info("All records are already up to date")
 	}
 
 	lastSyncTimestamp.SetToCurrentTime()

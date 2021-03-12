@@ -31,7 +31,7 @@ type Provider interface {
 	ApplyChanges(ctx context.Context, changes *plan.Changes) error
 	PropertyValuesEqual(name string, previous string, current string) bool
 	AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint
-	DomainFilter() endpoint.DomainFilter
+	DomainFilter() endpoint.DomainFilterInterface
 }
 
 type BaseProvider struct {
@@ -45,8 +45,8 @@ func (b BaseProvider) PropertyValuesEqual(name, previous, current string) bool {
 	return previous == current
 }
 
-func (b BaseProvider) DomainFilter() endpoint.DomainFilter {
-	return endpoint.DomainFilter{}
+func (b BaseProvider) DomainFilter() endpoint.DomainFilterInterface {
+	return &endpoint.DomainFilter{}
 }
 
 type contextKey struct {
