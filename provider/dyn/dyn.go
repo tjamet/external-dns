@@ -105,10 +105,19 @@ func (snap *ZoneSnapshot) StoreRecordsForSerial(zone string, serial int, records
 // DynProvider is the actual interface impl.
 type dynProviderState struct {
 	provider.BaseProvider
-	DynConfig
+	domainFilter       endpoint.DomainFilter
+	zoneIDFilter       provider.ZoneIDFilter
+	customerName       string
+	username           string
+	password           string
 	LastLoginErrorTime int64
+	minTTLSeconds      int
+
+	appVersion string
+	dynVersion string
 
 	ZoneSnapshot *ZoneSnapshot
+	dryRun       bool
 }
 
 // ZoneChange is missing from dynect: https://help.dyn.com/get-zone-changeset-api/
@@ -145,7 +154,14 @@ type ZonePublishResponse struct {
 // NewDynProvider initializes a new Dyn Provider.
 func NewDynProvider(config DynConfig) (provider.Provider, error) {
 	return &dynProviderState{
-		DynConfig: config,
+		domainFilter:  config.DomainFilter,
+		dryRun:        config.DryRun,
+		customerName:  config.CustomerName,
+		username:      config.Username,
+		password:      config.Password,
+		minTTLSeconds: config.MinTTLSeconds,
+		dynVersion:    config.DynVersion,
+		appVersion:    config.AppVersion,
 		ZoneSnapshot: &ZoneSnapshot{
 			endpoints: map[string][]*endpoint.Endpoint{},
 			serials:   map[string]int{},
@@ -336,9 +352,9 @@ func (d *dynProviderState) fetchAllRecordsInZone(zone string) (*dynectsoap.GetAl
 	service := dynectsoap.NewDynect(client)
 
 	sessionRequest := dynectsoap.SessionLoginRequestType{
-		Customer_name:  d.CustomerName,
-		User_name:      d.Username,
-		Password:       d.Password,
+		Customer_name:  d.customerName,
+		User_name:      d.username,
+		Password:       d.password,
 		Fault_incompat: 0,
 	}
 	resp := dynectsoap.SessionLoginResponseType{}
@@ -403,7 +419,7 @@ func (d *dynProviderState) buildLinkToRecord(ep *endpoint.Endpoint) string {
 		return ""
 	}
 	var matchingZone = ""
-	for _, zone := range d.ZoneIDFilter.ZoneIDs {
+	for _, zone := range d.zoneIDFilter.ZoneIDs {
 		if strings.HasSuffix(ep.DNSName, zone) {
 			matchingZone = zone
 			break
@@ -415,7 +431,7 @@ func (d *dynProviderState) buildLinkToRecord(ep *endpoint.Endpoint) string {
 		return ""
 	}
 
-	if !d.DomainFilter.Match(ep.DNSName) {
+	if !d.domainFilter.Match(ep.DNSName) {
 		// no matching domain, ignore
 		return ""
 	}
@@ -433,12 +449,12 @@ func (d *dynProviderState) login() (*dynect.Client, error) {
 			return nil, fmt.Errorf("will not attempt an API call as the last login failure occurred just %ds ago", secondsSinceLastError)
 		}
 	}
-	client := dynect.NewClient(d.CustomerName)
+	client := dynect.NewClient(d.customerName)
 
 	var req = dynect.LoginBlock{
-		Username:     d.Username,
-		Password:     d.Password,
-		CustomerName: d.CustomerName}
+		Username:     d.username,
+		Password:     d.password,
+		CustomerName: d.customerName}
 
 	var resp dynect.LoginResponse
 
@@ -452,14 +468,14 @@ func (d *dynProviderState) login() (*dynect.Client, error) {
 	client.Token = resp.Data.Token
 
 	// this is the only change from the original
-	d.DynVersion = resp.Data.Version
+	d.dynVersion = resp.Data.Version
 	return client, nil
 }
 
 // the zones we are allowed to touch. Currently only exact matches are considered, not all
 // zones with the given suffix
 func (d *dynProviderState) zones(client *dynect.Client) []string {
-	return d.ZoneIDFilter.ZoneIDs
+	return d.zoneIDFilter.ZoneIDs
 }
 
 func (d *dynProviderState) buildRecordRequest(ep *endpoint.Endpoint) (string, *dynect.RecordRequest) {
@@ -469,7 +485,7 @@ func (d *dynProviderState) buildRecordRequest(ep *endpoint.Endpoint) (string, *d
 	}
 
 	record := dynect.RecordRequest{
-		TTL:   fixMissingTTL(ep.RecordTTL, d.MinTTLSeconds),
+		TTL:   fixMissingTTL(ep.RecordTTL, d.minTTLSeconds),
 		RData: *endpointToRecord(ep),
 	}
 	return link, &record
@@ -541,8 +557,8 @@ func (d *dynProviderState) commit(client *dynect.Client) error {
 			h = "unknown-host"
 		}
 		notes := fmt.Sprintf("Change by external-dns@%s, DynAPI@%s, %s on %s",
-			d.AppVersion,
-			d.DynVersion,
+			d.appVersion,
+			d.dynVersion,
 			time.Now().Format(time.RFC3339),
 			h,
 		)
@@ -581,7 +597,7 @@ func (d *dynProviderState) Records(ctx context.Context) ([]*endpoint.Endpoint, e
 	}
 	defer client.Logout()
 
-	log.Debugf("Using DynAPI@%s", d.DynVersion)
+	log.Debugf("Using DynAPI@%s", d.dynVersion)
 
 	var result []*endpoint.Endpoint
 
@@ -627,7 +643,7 @@ func (d *dynProviderState) Records(ctx context.Context) ([]*endpoint.Endpoint, e
 func (d *dynProviderState) ApplyChanges(ctx context.Context, changes *plan.Changes) error {
 	log.Debugf("Processing changes: %+v", changes)
 
-	if d.DryRun {
+	if d.dryRun {
 		log.Infof("Will NOT delete these records: %+v", changes.Delete)
 		log.Infof("Will NOT create these records: %+v", changes.Create)
 		log.Infof("Will NOT update these records: %+v", merge(changes.UpdateOld, changes.UpdateNew))

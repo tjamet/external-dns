@@ -187,10 +187,8 @@ func TestDyn_endpointToRecord(t *testing.T) {
 
 func TestDyn_buildLinkToRecord(t *testing.T) {
 	provider := &dynProviderState{
-		DynConfig: DynConfig{
-			ZoneIDFilter: provider.NewZoneIDFilter([]string{"example.com"}),
-			DomainFilter: endpoint.NewDomainFilter([]string{"the-target.example.com"}),
-		},
+		zoneIDFilter: provider.NewZoneIDFilter([]string{"example.com"}),
+		domainFilter: endpoint.NewDomainFilter([]string{"the-target.example.com"}),
 	}
 
 	tests := []struct {

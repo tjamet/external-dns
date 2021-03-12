@@ -36,8 +36,8 @@ type RcodeZeroProvider struct {
 	provider.BaseProvider
 	Client *rc0.Client
 
-	DomainFilter endpoint.DomainFilter
-	DryRun       bool
+	domainFilter endpoint.DomainFilter
+	dryRun       bool
 	TXTEncrypt   bool
 	Key          []byte
 }
@@ -63,8 +63,8 @@ func NewRcodeZeroProvider(domainFilter endpoint.DomainFilter, dryRun bool, txtEn
 
 	provider := &RcodeZeroProvider{
 		Client:       client,
-		DomainFilter: domainFilter,
-		DryRun:       dryRun,
+		domainFilter: domainFilter,
+		dryRun:       dryRun,
 		TXTEncrypt:   txtEnc,
 	}
 
@@ -85,7 +85,7 @@ func (p *RcodeZeroProvider) Zones() ([]*rc0.Zone, error) {
 	}
 
 	for _, zone := range zones {
-		if p.DomainFilter.Match(zone.Domain) {
+		if p.domainFilter.Match(zone.Domain) {
 			result = append(result, zone)
 		}
 	}
@@ -239,7 +239,7 @@ func (p *RcodeZeroProvider) submitChanges(changes []*rc0.RRSetChange) error {
 
 			log.WithFields(logFields).Info("Changing record.")
 
-			if p.DryRun {
+			if p.dryRun {
 				continue
 			}
 
