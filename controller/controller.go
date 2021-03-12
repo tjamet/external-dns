@@ -144,7 +144,7 @@ func (c *Controller) RunOnce(ctx context.Context) error {
 	endpoints = c.Registry.AdjustEndpoints(endpoints)
 
 	plan := &plan.Plan{
-		Policies:           []plan.Policy{c.Policy},
+		Policies:           append([]plan.Policy{c.Policy}, c.Registry.Policies()...),
 		Current:            records,
 		Desired:            endpoints,
 		DomainFilter:       c.DomainFilter,

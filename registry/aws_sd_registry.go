@@ -42,6 +42,11 @@ func NewAWSSDRegistry(provider provider.Provider, ownerID string) (*AWSSDRegistr
 	}, nil
 }
 
+// Policies returns registry specific policies to be applied before the rest of policies
+func (sdr *AWSSDRegistry) Policies() []plan.Policy {
+	return mergeProviderPolicies(nil, sdr.provider)
+}
+
 // Records calls AWS SD API and expects AWS SD provider to provider Owner/Resource information as a serialized
 // value in the AWSSDDescriptionLabel value in the Labels map
 func (sdr *AWSSDRegistry) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {

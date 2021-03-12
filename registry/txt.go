@@ -68,6 +68,11 @@ func NewTXTRegistry(provider provider.Provider, txtPrefix, txtSuffix, ownerID st
 	}, nil
 }
 
+// Policies returns registry specific policies to be applied before the rest of policies
+func (im *TXTRegistry) Policies() []plan.Policy {
+	return mergeProviderPolicies(nil, im.provider)
+}
+
 // Records returns the current records from the registry excluding TXT Records
 // If TXT records was created previously to indicate ownership its corresponding value
 // will be added to the endpoints Labels map

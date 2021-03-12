@@ -31,6 +31,7 @@ type Provider interface {
 	ApplyChanges(ctx context.Context, changes *plan.Changes) error
 	PropertyValuesEqual(name string, previous string, current string) bool
 	AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint
+	Policies() []plan.Policy
 }
 
 type BaseProvider struct {
@@ -42,6 +43,10 @@ func (b BaseProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoin
 
 func (b BaseProvider) PropertyValuesEqual(name, previous, current string) bool {
 	return previous == current
+}
+
+func (b BaseProvider) Policies() []plan.Policy {
+	return []plan.Policy{}
 }
 
 type contextKey struct {

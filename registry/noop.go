@@ -36,6 +36,11 @@ func NewNoopRegistry(provider provider.Provider) (*NoopRegistry, error) {
 	}, nil
 }
 
+// Policies returns registry specific policies to be applied before the rest of policies
+func (im *NoopRegistry) Policies() []plan.Policy {
+	return mergeProviderPolicies(nil, im.provider)
+}
+
 // Records returns the current records from the dns provider
 func (im *NoopRegistry) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	return im.provider.Records(ctx)
