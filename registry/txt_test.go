@@ -638,6 +638,9 @@ func testTXTRegistryApplyChangesNoPrefix(t *testing.T) {
 		assert.True(t, testutils.SamePlanChanges(mGot, mExpected))
 		assert.Equal(t, nil, ctx.Value(provider.RecordsContextKey))
 	}
+	for _, p := range r.Policies() {
+		changes = p.Apply(changes)
+	}
 	err := r.ApplyChanges(ctx, changes)
 	require.NoError(t, err)
 }
