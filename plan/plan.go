@@ -57,6 +57,8 @@ type Changes struct {
 	UpdateNew []*endpoint.Endpoint
 	// Records that need to be deleted
 	Delete []*endpoint.Endpoint
+	// Records that are currently configured
+	Current []*endpoint.Endpoint
 }
 
 // planTable is a supplementary struct for Plan
@@ -134,6 +136,8 @@ func (p *Plan) Calculate() *Plan {
 		for _, row := range topRow {
 			if row.current == nil { //dns name not taken
 				changes.Create = append(changes.Create, t.resolver.ResolveCreate(row.candidates))
+			} else {
+				changes.Current = append(changes.Current, row.current)
 			}
 			if row.current != nil && len(row.candidates) == 0 {
 				changes.Delete = append(changes.Delete, row.current)
